@@ -1,0 +1,41 @@
+# .NET build output
+**/bin/
+**/obj/
+**/TestResults/
+**/artifacts/
+**/publish/
+
+# Visual Studio / IDE
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local configuration and secrets
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.example.json
+**/secrets.json
+**/.env
+**/.env.*
+!**/.env.example
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# Local database files
+*.mdf
+*.ldf
+*.sqlite
+*.sqlite3
+*.db
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini

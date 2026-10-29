@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JobTracker</title>
+    <style>
+        :root {
+            font-family: Inter, "Segoe UI", Arial, sans-serif;
+            color: #172033;
+            background: #f4f6fa;
+        }
+
+        * { box-sizing: border-box; }
+
+        body { margin: 0; }
+
+        header {
+            background: #172033;
+            color: white;
+            padding: 24px max(24px, calc((100% - 1200px) / 2));
+        }
+
+        header h1 { margin: 0 0 5px; font-size: 26px; }
+        header p { margin: 0; color: #bac5d8; font-size: 14px; }
+
+        main {
+            max-width: 1200px;
+            margin: 28px auto;
+            padding: 0 20px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 15px;
+            margin-bottom: 22px;
+        }
+
+        .stat, .panel {
+            background: white;
+            border: 1px solid #e4e8f0;
+            border-radius: 12px;
+        }
+
+        .stat { padding: 18px; }
+        .stat span { display: block; color: #657087; font-size: 13px; }
+        .stat strong { display: block; font-size: 28px; margin-top: 8px; }
+
+        .panel { padding: 20px; }
+
+        .toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 16px 0;
+        }
+
+        input, select, button {
+            font: inherit;
+            border-radius: 7px;
+            padding: 10px 12px;
+        }
+
+        input, select {
+            border: 1px solid #d6dce7;
+            background: white;
+            color: #172033;
+        }
+
+        input { min-width: 180px; }
+        #search { flex: 1; }
+        button {
+            background: #315bea;
+            color: white;
+            border: 0;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        button.secondary { background: #e9edf5; color: #26334b; }
+        button:disabled { opacity: .6; cursor: wait; }
+
+        #message {
+            min-height: 22px;
+            color: #53627a;
+            font-size: 13px;
+            margin: 10px 0;
+        }
+
+        .table-wrap { overflow-x: auto; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        th, td {
+            padding: 14px 12px;
+            border-bottom: 1px solid #edf0f5;
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            color: #68758b;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+        }
+
+        td small { display: block; color: #778197; margin-top: 5px; }
+        td a { color: #315bea; font-weight: 600; text-decoration: none; }
+        td a:hover { text-decoration: underline; }
+        td select { min-width: 155px; padding: 8px; font-size: 13px; }
+        .empty { text-align: center; color: #778197; padding: 35px; }
+
+        @media (max-width: 700px) {
+            .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            main { padding: 0 12px; }
+            .panel { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>JobTracker</h1>
+        <p>Gestión y seguimiento de ofertas laborales</p>
+    </header>
+
+    <main>
+        
+        <section class="panel" style="margin-bottom:22px">
+            <h2>Mi perfil profesional</h2>
+            <p>Carga tu currículum PDF para detectar tus habilidades y compararlas con las ofertas.</p>
+
+            <div class="toolbar">
+                <input type="file" id="cvFile" accept=".pdf,application/pdf"
+                       aria-label="Seleccionar currículum PDF">
+                <button id="uploadCvButton" type="button">Cargar CV</button>
+            </div>
+
+            <div id="profileMessage" role="status">
+                Todavía no has cargado un CV.
+            </div>
+
+            <div id="profileSkills"></div>
+        </section>
+
+        <section class="stats">
+            <div class="stat"><span>Total de ofertas</span><strong id="total">0</strong></div>
+            <div class="stat"><span>Pendientes</span><strong id="pending">0</strong></div>
+            <div class="stat"><span>Listas para postular</span><strong id="ready">0</strong></div>
+            <div class="stat"><span>Postuladas</span><strong id="applied">0</strong></div>
+        </section>
+
+        <section class="panel">
+            <h2>Ofertas laborales</h2>
+            <p>Consulta las ofertas guardadas o importa resultados de Computrabajo.</p>
+
+            <div class="toolbar">
+                <input id="title" value="desarrollador" aria-label="Búsqueda en Computrabajo"
+                       placeholder="Ej. desarrollador .NET">
+                <button id="importButton" type="button">Importar ofertas</button>
+            </div>
+
+            <div class="toolbar">
+                <input id="search" placeholder="Filtrar por cargo o empresa..."
+                       aria-label="Filtrar ofertas guardadas">
+                <select id="statusFilter" aria-label="Filtrar por estado">
+                    <option value="">Todos los estados</option>
+                    <option value="Pending">Pendientes</option>
+                    <option value="Ready">Listas para postular</option>
+                    <option value="Skipped">Descartadas</option>
+                    <option value="Applied">Postuladas</option>
+                </select>
+                                
+                <select id="minScore" aria-label="Puntaje mínimo de compatibilidad">
+                    <option value="70" selected>Compatibilidad ≥ 70%</option>
+                    <option value="80">Compatibilidad ≥ 80%</option>
+                    <option value="50">Compatibilidad ≥ 50%</option>
+                    <option value="30">Compatibilidad ≥ 30%</option>
+                    <option value="0">Todos los puntajes</option>
+                </select>
+
+                <button id="refreshButton" class="secondary" type="button">Actualizar lista</button>
+            </div>
+
+            <div id="message" role="status">Cargando ofertas...</div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Oferta</th>
+                            <th>Ubicación</th>
+                            <th>Compatibilidad</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="offers">
+                        <tr><td colspan="4" class="empty">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const api = "/api/JobOffers";
+        const offersBody = document.getElementById("offers");
+        const message = document.getElementById("message");
+        const importButton = document.getElementById("importButton");
+        let offers = [];
+
+        const statusLabels = {
+            Pending: "Pendiente",
+            Ready: "Lista para postular",
+            Skipped: "Descartada",
+            Applied: "Postulada"
+        };
+
+        function escapeHtml(value) {
+            return String(value ?? "").replace(/[&<>"']/g, character => ({
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#39;"
+            })[character]);
+        }
+
+        function updateStats() {
+            document.getElementById("total").textContent = offers.length;
+            document.getElementById("pending").textContent =
+                offers.filter(o => o.status === "Pending").length;
+            document.getElementById("ready").textContent =
+                offers.filter(o => o.status === "Ready").length;
+            document.getElementById("applied").textContent =
+                offers.filter(o => o.status === "Applied").length;
+        }
+
+        function renderOffers() {
+            const term = document.getElementById("search").value.toLowerCase().trim();
+            const status = document.getElementById("statusFilter").value;
+
+            const filtered = offers.filter(offer => {
+                const text = `${offer.title} ${offer.company} ${offer.location}`.toLowerCase();
+                return text.includes(term) && (!status || offer.status === status);
+            });
+
+            updateStats();
+
+            if (!filtered.length) {
+                offersBody.innerHTML =
+                    '<tr><td colspan="4" class="empty">No hay ofertas para mostrar.</td></tr>';
+                return;
+            }
+
+            offersBody.innerHTML = filtered.map(offer => `
+                <tr>
+                    <td>
+                        <a href="${escapeHtml(offer.url)}" target="_blank"
+                        rel="noopener noreferrer"
+                        data-id="${offer.id}">${escapeHtml(offer.title)}</a>
+                        <small>${escapeHtml(offer.company || "Empresa no informada")}</small>
+                    </td>
+                    <td>${escapeHtml(offer.location || "No informada")}</td>
+                    <td>${offer.matchScore == null
+                        ? "Sin calcular"
+                        : escapeHtml(offer.matchScore) + "%"}</td>
+                    <td>
+                        <select data-id="${offer.id}" aria-label="Estado de la oferta">
+                            ${Object.entries(statusLabels).map(([value, label]) => `
+                                <option value="${value}"
+                                    ${offer.status === value ? "selected" : ""}>
+                                    ${label}
+                                </option>`).join("")}
+                        </select>
+                    </td>
+                </tr>
+            `).join("");
+        }
+
+        async function loadOffers() {
+            message.textContent = "Cargando ofertas...";
+            try {
+                const minScore = document.getElementById("minScore").value;
+                const response = await fetch(
+                    `${api}?minScore=${encodeURIComponent(minScore)}`
+                );
+                if (!response.ok) throw new Error("No se pudieron cargar las ofertas.");
+
+                offers = await response.json();
+                renderOffers();
+                message.textContent = `Se cargaron ${offers.length} ofertas desde la base de datos.`;
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        }
+
+        importButton.addEventListener("click", async () => {
+            const title = document.getElementById("title").value.trim();
+
+            if (!title) {
+                message.textContent = "Escribe un cargo para realizar la búsqueda.";
+                return;
+            }
+
+            importButton.disabled = true;
+            message.textContent = "Consultando Computrabajo e importando ofertas...";
+
+            try {
+                const query = new URLSearchParams({ title, page: "1" });
+                const response = await fetch(`/api/computrabajo/import?${query}`, {
+                    method: "POST"
+                });
+
+                const result = await response.json();
+                if (!response.ok) {
+                    throw new Error(result.message || "Falló la importación.");
+                }
+
+                await loadOffers();
+                message.textContent =
+                    `Importación terminada: ${result.inserted} nuevas, ` +
+                    `${result.updated} actualizadas y ${result.failed} fallidas.`;
+            } catch (error) {
+                message.textContent = error.message;
+            } finally {
+                importButton.disabled = false;
+            }
+        });
+
+        offersBody.addEventListener("change", async event => {
+            const select = event.target.closest("select[data-id]");
+            if (!select) return;
+
+            const offer = offers.find(o => o.id === Number(select.dataset.id));
+            if (!offer) return;
+
+            const previousStatus = offer.status;
+            const newStatus = select.value;
+            select.disabled = true;
+
+            try {
+                const response = await fetch(`${api}/${offer.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...offer, status: newStatus })
+                });
+
+                if (!response.ok) throw new Error("No se pudo actualizar el estado.");
+
+                offer.status = newStatus;
+                renderOffers();
+                message.textContent = "Estado actualizado correctamente.";
+            } catch (error) {
+                offer.status = previousStatus;
+                renderOffers();
+                message.textContent = error.message;
+            }
+        });
+        
+        offersBody.addEventListener("click", async event => {
+            const link = event.target.closest("a[data-id]");
+            if (!link) return;
+
+            const offer = offers.find(
+                o => o.id === Number(link.dataset.id)
+            );
+
+            if (!offer || offer.status !== "Pending") return;
+
+            try {
+                const response = await fetch(`${api}/${offer.id}`, {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...offer, status: "Ready" })
+                });
+
+                if (!response.ok) {
+                    throw new Error("No se pudo actualizar el estado.");
+                }
+
+                offer.status = "Ready";
+                renderOffers();
+
+                message.textContent =
+                    "Oferta revisada: marcada como lista para postular.";
+            } catch (error) {
+                message.textContent =
+                    `${error.message} La oferta sigue pendiente.`;
+            }
+        });
+
+
+        document.getElementById("search").addEventListener("input", renderOffers);
+        document.getElementById("statusFilter").addEventListener("change", renderOffers);
+        document.getElementById("refreshButton").addEventListener("click", loadOffers);
+
+        
+        async function loadProfile() {
+            const message = document.getElementById("profileMessage");
+            const skillsContainer = document.getElementById("profileSkills");
+
+            try {
+                const response = await fetch("/api/profile");
+
+                if (response.status === 404) {
+                    message.textContent = "Todavía no has cargado un CV.";
+                    skillsContainer.innerHTML = "";
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error("No se pudo cargar el perfil.");
+                }
+
+                const profile = await response.json();
+                renderProfile(profile);
+            } catch (error) {
+                message.textContent = error.message;
+            }
+        }
+
+        function renderProfile(profile) {
+            const message = document.getElementById("profileMessage");
+            const skillsContainer = document.getElementById("profileSkills");
+
+            message.textContent =
+                `${profile.fileName} · ${profile.skillCount} habilidades detectadas`;
+
+            skillsContainer.innerHTML = profile.skills.map(skill =>
+                `<span style="display:inline-block;background:#e9edf5;padding:6px 10px;margin:4px;border-radius:15px;font-size:13px">
+                    ${escapeHtml(skill)}
+                </span>`
+            ).join("");
+        }
+
+        document.getElementById("uploadCvButton").addEventListener("click", async () => {
+            const file = document.getElementById("cvFile").files[0];
+            const button = document.getElementById("uploadCvButton");
+            const message = document.getElementById("profileMessage");
+
+            if (!file) {
+                message.textContent = "Selecciona tu currículum en PDF.";
+                return;
+            }
+
+            button.disabled = true;
+            message.textContent = "Analizando currículum...";
+
+            try {
+                const formData = new FormData();
+                formData.append("file", file);
+
+                                
+                const response = await fetch("/api/profile/upload", {
+                    method: "POST",
+                    body: formData
+                });
+
+                const raw = await response.text();
+                let result = {};
+
+                try {
+                    result = raw ? JSON.parse(raw) : {};
+                } catch {
+                    result = {};
+                }
+
+                if (!response.ok) {
+                    throw new Error(
+                        result.message ||
+                        `Error HTTP ${response.status}: ${raw.slice(0, 250) || "respuesta vacía"}`
+                    );
+                }
+
+                if (!raw) {
+                    throw new Error(`La API respondió HTTP ${response.status} sin contenido.`);
+                }
+
+
+                renderProfile(result);
+                message.textContent =
+                    `${result.fileName}: ${result.skillCount} habilidades detectadas.`;
+            } catch (error) {
+                message.textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        });
+
+        document.getElementById("minScore").addEventListener("change", loadOffers);
+
+        loadOffers();
+        loadProfile();
+    </script>
+</body>
+</html>
